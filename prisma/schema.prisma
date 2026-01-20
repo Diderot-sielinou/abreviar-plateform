@@ -1,14 +1,175 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// =============================================================================
+// PRISMA SCHEMA - Abreviar URL Shortener
+// =============================================================================
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// =============================================================================
+// USER MODEL
+// =============================================================================
+
+enum Plan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  plan          Plan      @default(FREE)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  accounts Account[]
+  sessions Session[]
+  links    Link[]
+
+  @@index([email])
+}
+
+// =============================================================================
+// NEXTAUTH MODELS
+// =============================================================================
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// =============================================================================
+// LINK MODEL
+// =============================================================================
+
+model Link {
+  id            String    @id @default(cuid())
+  userId        String
+  slug          String    @unique
+  originalUrl   String    @db.Text
+  isActive      Boolean   @default(true)
+
+  // Custom OG Tags for social media previews
+  ogTitle       String?   @db.VarChar(70)
+  ogDescription String?   @db.VarChar(200)
+  ogImage       String?   @db.Text
+
+  // Device-specific redirects (optional)
+  iosUrl        String?   @db.Text
+  androidUrl    String?   @db.Text
+
+  // Link protection
+  password      String?
+  expiresAt     DateTime?
+  clickLimit    Int?
+
+  // Analytics (denormalized for performance)
+  totalClicks   Int       @default(0)
+
+  // Timestamps
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clicks Click[]
+
+  @@index([userId])
+  @@index([slug])
+  @@index([createdAt])
+}
+
+// =============================================================================
+// CLICK MODEL (Analytics)
+// =============================================================================
+
+enum DeviceType {
+  DESKTOP
+  MOBILE
+  TABLET
+  UNKNOWN
+}
+
+model Click {
+  id        String   @id @default(cuid())
+  linkId    String
+  createdAt DateTime @default(now())
+
+  // Geolocation (from Vercel Edge)
+  country   String?  @db.VarChar(2)
+  city      String?  @db.VarChar(100)
+  region    String?  @db.VarChar(100)
+  latitude  Float?
+  longitude Float?
+
+  // Device info
+  device     DeviceType @default(UNKNOWN)
+  deviceName String?    @db.VarChar(100)
+  browser    String?    @db.VarChar(50)
+  os         String?    @db.VarChar(50)
+
+  // Traffic source
+  referer       String? @db.Text
+  refererDomain String? @db.VarChar(255)
+  utmSource     String? @db.VarChar(100)
+  utmMedium     String? @db.VarChar(100)
+  utmCampaign   String? @db.VarChar(100)
+
+  // Bot detection
+  isBot Boolean @default(false)
+
+  // Relations
+  link Link @relation(fields: [linkId], references: [id], onDelete: Cascade)
+
+  @@index([linkId])
+  @@index([linkId, createdAt])
+  @@index([country])
+  @@index([device])
+  @@index([refererDomain])
+  @@index([createdAt])
 }
