@@ -149,7 +149,7 @@ abreviar/
 
 ## 🎨 Design System
 
-Abreviar uses a **LaunchLayer-inspired** warm color palette:
+Abreviar uses  warm color palette:
 
 | Color | Hex | Usage |
 |-------|-----|-------|
