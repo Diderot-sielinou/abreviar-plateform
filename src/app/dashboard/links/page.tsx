@@ -7,7 +7,8 @@ import { auth } from "@/app/lib/auth";
 import { db } from "@/app/lib/db";
 import { formatCompactNumber, formatRelativeTime } from "@/app/lib/utils";
 import { Card, CardContent, Button, Badge, Input } from "@/components/ui";
-import { Link2, Plus, Search, ExternalLink, Copy, BarChart3, QrCode, MoreHorizontal } from "lucide-react";
+import { Link2, Plus, Search, ExternalLink, BarChart3, MoreHorizontal } from "lucide-react";
+import { LinkActions } from "./link-actions";
 
 export default async function LinksPage() {
   const session = await auth();
@@ -108,9 +109,6 @@ function LinkCard({ link }: LinkCardProps) {
                   >
                     {shortUrl.replace("https://", "")}
                   </Link>
-                  <Button variant="ghost" size="icon-sm" title="Copy">
-                    <Copy className="w-3.5 h-3.5" />
-                  </Button>
                   <Button variant="ghost" size="icon-sm" asChild title="Open">
                     <Link href={shortUrl} target="_blank">
                       <ExternalLink className="w-3.5 h-3.5" />
@@ -143,10 +141,8 @@ function LinkCard({ link }: LinkCardProps) {
                       Stats
                     </Link>
                   </Button>
-                  <Button variant="outline" size="sm">
-                    <QrCode className="w-4 h-4 mr-1" />
-                    QR
-                  </Button>
+                  {/* Client component for QR and Copy */}
+                  <LinkActions shortUrl={shortUrl} slug={link.slug} />
                   <Button variant="ghost" size="icon-sm">
                     <MoreHorizontal className="w-4 h-4" />
                   </Button>
