@@ -5,7 +5,7 @@
 
 /**
  * Create New Link Page
- * 
+ *
  * Form for creating short links with custom OG tags.
  */
 
@@ -13,8 +13,28 @@ import { useState } from "react";
 import Link from "next/link";
 // import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Link2, Sparkles, Image, Calendar, Loader2, ExternalLink, Copy, Check } from "lucide-react";
-import { Button, Input, Card, CardContent, CardHeader, CardTitle, CardDescription, Badge } from "@/components/ui";
+import {
+  ArrowLeft,
+  Link2,
+  Sparkles,
+  Image,
+  Calendar,
+  Loader2,
+  ExternalLink,
+  Copy,
+  Check,
+} from "lucide-react";
+import {
+  Button,
+  Input,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  Badge,
+} from "@/components/ui";
+import { ImageUpload } from "@/components/image-upload";
 
 export default function NewLinkPage() {
   // const router = useRouter();
@@ -97,34 +117,46 @@ export default function NewLinkPage() {
   if (createdLink) {
     return (
       <div className="p-6 lg:p-8">
-        <div className="max-w-2xl mx-auto">
+        <div className="mx-auto max-w-2xl">
           <Card className="border-tangerine/30">
-            <CardContent className="pt-8 pb-8">
+            <CardContent className="pb-8 pt-8">
               <div className="text-center">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-tangerine to-rust flex items-center justify-center mx-auto mb-6">
-                  <Check className="w-8 h-8 text-white" />
+                <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-tangerine to-rust">
+                  <Check className="h-8 w-8 text-white" />
                 </div>
-                <h2 className="font-display text-2xl font-bold mb-2">Link Created!</h2>
-                <p className="text-muted-foreground mb-6">Your short link is ready to share.</p>
+                <h2 className="mb-2 font-display text-2xl font-bold">Link Created!</h2>
+                <p className="mb-6 text-muted-foreground">Your short link is ready to share.</p>
 
-                <div className="bg-muted rounded-xl p-4 flex items-center justify-between gap-4 mb-6">
-                  <code className="text-tangerine font-mono text-lg truncate">
+                <div className="mb-6 flex items-center justify-between gap-4 rounded-xl bg-muted p-4">
+                  <code className="truncate font-mono text-lg text-tangerine">
                     {createdLink.shortUrl}
                   </code>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex shrink-0 items-center gap-2">
                     <Button variant="outline" size="icon" onClick={copyToClipboard}>
-                      {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                     </Button>
                     <Button variant="outline" size="icon" asChild>
                       <Link href={createdLink.shortUrl} target="_blank">
-                        <ExternalLink className="w-4 h-4" />
+                        <ExternalLink className="h-4 w-4" />
                       </Link>
                     </Button>
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                  <Button onClick={() => { setCreatedLink(null); setFormData({ originalUrl: "", slug: "", ogTitle: "", ogDescription: "", ogImage: "", expiresAt: "" }); }}>
+                <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+                  <Button
+                    onClick={() => {
+                      setCreatedLink(null);
+                      setFormData({
+                        originalUrl: "",
+                        slug: "",
+                        ogTitle: "",
+                        ogDescription: "",
+                        ogImage: "",
+                        expiresAt: "",
+                      });
+                    }}
+                  >
                     Create Another
                   </Button>
                   <Button variant="outline" asChild>
@@ -141,18 +173,20 @@ export default function NewLinkPage() {
 
   return (
     <div className="p-6 lg:p-8">
-      <div className="max-w-2xl mx-auto">
+      <div className="mx-auto max-w-2xl">
         {/* Header */}
         <div className="mb-8">
           <Link
             href="/dashboard/links"
-            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4"
+            className="mb-4 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="h-4 w-4" />
             Back to links
           </Link>
-          <h1 className="font-display text-2xl lg:text-3xl font-bold">Create New Link</h1>
-          <p className="text-muted-foreground mt-1">Shorten a URL and customize how it appears when shared.</p>
+          <h1 className="font-display text-2xl font-bold lg:text-3xl">Create New Link</h1>
+          <p className="mt-1 text-muted-foreground">
+            Shorten a URL and customize how it appears when shared.
+          </p>
         </div>
 
         {/* Form */}
@@ -161,7 +195,7 @@ export default function NewLinkPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Link2 className="w-5 h-5 text-tangerine" />
+                <Link2 className="h-5 w-5 text-tangerine" />
                 Destination URL
               </CardTitle>
               <CardDescription>The original URL you want to shorten.</CardDescription>
@@ -183,15 +217,17 @@ export default function NewLinkPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-tangerine" />
+                <Sparkles className="h-5 w-5 text-tangerine" />
                 Custom Slug
                 <Badge variant="secondary">Optional</Badge>
               </CardTitle>
-              <CardDescription>Create a memorable short link. Leave empty for auto-generated.</CardDescription>
+              <CardDescription>
+                Create a memorable short link. Leave empty for auto-generated.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
-                <span className="text-muted-foreground shrink-0">abreviar.io/s/</span>
+                <span className="shrink-0 text-muted-foreground">abreviar.io/s/</span>
                 <Input
                   name="slug"
                   placeholder="my-custom-link"
@@ -211,7 +247,7 @@ export default function NewLinkPage() {
             onClick={() => setShowAdvanced(!showAdvanced)}
           >
             <span className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4" />
+              <Sparkles className="h-4 w-4" />
               Advanced Options
             </span>
             <Badge variant="outline">{showAdvanced ? "Hide" : "Show"}</Badge>
@@ -224,15 +260,17 @@ export default function NewLinkPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Image className="w-5 h-5 text-tangerine" />
+                    <Image className="h-5 w-5 text-tangerine" />
                     Social Preview
                     <Badge variant="secondary">Optional</Badge>
                   </CardTitle>
-                  <CardDescription>Customize how your link appears when shared on social media.</CardDescription>
+                  <CardDescription>
+                    Customize how your link appears when shared on social media.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Title</label>
+                    <label className="mb-2 block text-sm font-medium">Title</label>
                     <Input
                       name="ogTitle"
                       placeholder="My awesome page"
@@ -240,11 +278,13 @@ export default function NewLinkPage() {
                       onChange={handleChange}
                       maxLength={70}
                     />
-                    <p className="text-xs text-muted-foreground mt-1">{formData.ogTitle.length}/70 characters</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {formData.ogTitle.length}/70 characters
+                    </p>
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Description</label>
+                    <label className="mb-2 block text-sm font-medium">Description</label>
                     <textarea
                       name="ogDescription"
                       placeholder="A brief description of your content..."
@@ -252,38 +292,44 @@ export default function NewLinkPage() {
                       onChange={handleChange}
                       maxLength={200}
                       rows={3}
-                      className="flex w-full rounded-lg border border-input bg-background px-4 py-2 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background focus:border-tangerine placeholder:text-muted-foreground resize-none"
+                      className="flex w-full resize-none rounded-lg border border-input bg-background px-4 py-2 text-sm transition-all duration-200 placeholder:text-muted-foreground focus:border-tangerine focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
                     />
-                    <p className="text-xs text-muted-foreground mt-1">{formData.ogDescription.length}/200 characters</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {formData.ogDescription.length}/200 characters
+                    </p>
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Image URL</label>
-                    <Input
-                      name="ogImage"
-                      type="url"
-                      placeholder="https://example.com/image.jpg"
+                    <label className="mb-2 block text-sm font-medium">Image</label>
+                    <ImageUpload
                       value={formData.ogImage}
-                      onChange={handleChange}
+                      onChange={(url) => setFormData((prev) => ({ ...prev, ogImage: url }))}
                     />
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Upload an image or paste a URL. Recommended: 1200x630px
+                    </p>
                   </div>
 
                   {/* Preview */}
                   {(formData.ogTitle || formData.ogDescription || formData.ogImage) && (
                     <div className="mt-4">
-                      <label className="text-sm font-medium mb-2 block">Preview</label>
-                      <div className="rounded-xl border border-border overflow-hidden bg-card">
+                      <label className="mb-2 block text-sm font-medium">Preview</label>
+                      <div className="overflow-hidden rounded-xl border border-border bg-card">
                         {formData.ogImage && (
                           <div className="h-40 bg-muted">
-                            <img src={formData.ogImage} alt="" className="w-full h-full object-cover" />
+                            <img
+                              src={formData.ogImage}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
                           </div>
                         )}
                         <div className="p-4">
-                          <p className="font-medium truncate">{formData.ogTitle || "Your Title"}</p>
-                          <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                          <p className="truncate font-medium">{formData.ogTitle || "Your Title"}</p>
+                          <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
                             {formData.ogDescription || "Your description will appear here..."}
                           </p>
-                          <p className="text-xs text-muted-foreground mt-2">abreviar.io</p>
+                          <p className="mt-2 text-xs text-muted-foreground">abreviar.io</p>
                         </div>
                       </div>
                     </div>
@@ -295,7 +341,7 @@ export default function NewLinkPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-tangerine" />
+                    <Calendar className="h-5 w-5 text-tangerine" />
                     Expiration
                     <Badge variant="secondary">Optional</Badge>
                   </CardTitle>
@@ -322,13 +368,13 @@ export default function NewLinkPage() {
             <Button type="submit" disabled={isLoading || !formData.originalUrl}>
               {isLoading ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Creating...
                 </>
               ) : (
                 <>
                   Create Link
-                  <ArrowLeft className="w-4 h-4 ml-2 rotate-180" />
+                  <ArrowLeft className="ml-2 h-4 w-4 rotate-180" />
                 </>
               )}
             </Button>

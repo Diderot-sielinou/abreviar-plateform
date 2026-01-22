@@ -1,134 +1,178 @@
-/**
- * Zod Validation Schemas
- * 
- * Type-safe validation for API requests and forms.
- */
-
 import { z } from "zod";
-import { SLUG_CONFIG, RESERVED_SLUGS, OG_CONFIG } from "./constants";
 
-// =============================================================================
-// LINK SCHEMAS
-// =============================================================================
+// URL validation regex
+const urlRegex = /^https?:\/\/.+/i;
 
 /**
- * Create link validation
+ * Schema for creating a new link
  */
 export const createLinkSchema = z.object({
   originalUrl: z
     .string()
     .min(1, "URL is required")
-    .url("Please enter a valid URL")
-    .refine(
-      (url) => url.startsWith("http://") || url.startsWith("https://"),
-      "URL must start with http:// or https://"
-    ),
-  
+    .regex(urlRegex, "Must be a valid URL starting with http:// or https://")
+    .max(2048, "URL is too long"),
+
   slug: z
     .string()
-    .min(SLUG_CONFIG.MIN_LENGTH, `Slug must be at least ${SLUG_CONFIG.MIN_LENGTH} characters`)
-    .max(SLUG_CONFIG.MAX_LENGTH, `Slug must be at most ${SLUG_CONFIG.MAX_LENGTH} characters`)
-    .regex(/^[a-z0-9-]+$/, "Slug can only contain lowercase letters, numbers, and hyphens")
-    .refine((slug) => !RESERVED_SLUGS.has(slug), "This slug is reserved")
+    .min(3, "Slug must be at least 3 characters")
+    .max(50, "Slug must be at most 50 characters")
+    .regex(/^[a-zA-Z0-9_-]+$/, "Slug can only contain letters, numbers, hyphens, and underscores")
     .optional()
     .or(z.literal("")),
-  
-  ogTitle: z
-    .string()
-    .max(OG_CONFIG.TITLE_MAX_LENGTH, `Title must be at most ${OG_CONFIG.TITLE_MAX_LENGTH} characters`)
-    .optional()
-    .or(z.literal("")),
-  
+
+  ogTitle: z.string().max(70, "Title must be at most 70 characters").optional().or(z.literal("")),
+
   ogDescription: z
     .string()
-    .max(OG_CONFIG.DESCRIPTION_MAX_LENGTH, `Description must be at most ${OG_CONFIG.DESCRIPTION_MAX_LENGTH} characters`)
+    .max(200, "Description must be at most 200 characters")
     .optional()
     .or(z.literal("")),
-  
-  ogImage: z
-    .string()
-    .url("Please enter a valid image URL")
-    .optional()
-    .or(z.literal("")),
-  
+
+  ogImage: z.string().max(2048, "Image URL is too long").optional().or(z.literal("")),
+
+  // Accepter string (datetime-local) ou Date, et transformer en Date
   expiresAt: z
+    .union([
+      z.string().datetime({ offset: true }),
+      z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "Invalid datetime format"),
+      z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/, "Invalid datetime format"),
+      z.date(),
+      z.literal(""),
+      z.null(),
+    ])
+    .optional()
+    .transform((val) => {
+      if (!val || val === "") return null;
+      if (val instanceof Date) return val;
+      // Convertir string en Date
+      const date = new Date(val);
+      return isNaN(date.getTime()) ? null : date;
+    }),
+
+  clickLimit: z
+    .union([z.number().int().positive(), z.string(), z.null()])
+    .optional()
+    .transform((val) => {
+      if (!val || val === "") return null;
+      const num = typeof val === "string" ? parseInt(val, 10) : val;
+      return isNaN(num) || num <= 0 ? null : num;
+    }),
+
+  password: z.string().max(100, "Password is too long").optional().or(z.literal("")),
+
+  iosUrl: z.string().regex(urlRegex, "Must be a valid URL").max(2048).optional().or(z.literal("")),
+
+  androidUrl: z
     .string()
-    .datetime()
+    .regex(urlRegex, "Must be a valid URL")
+    .max(2048)
     .optional()
     .or(z.literal("")),
-  
-  clickLimit: z
-    .number()
-    .int()
-    .positive()
-    .optional()
-    .nullable(),
 });
 
 export type CreateLinkInput = z.infer<typeof createLinkSchema>;
 
 /**
- * Update link validation
+ * Schema for updating an existing link
  */
 export const updateLinkSchema = z.object({
-  originalUrl: z.string().url().optional(),
-  ogTitle: z.string().max(OG_CONFIG.TITLE_MAX_LENGTH).optional().nullable(),
-  ogDescription: z.string().max(OG_CONFIG.DESCRIPTION_MAX_LENGTH).optional().nullable(),
-  ogImage: z.string().url().optional().nullable().or(z.literal("")),
+  originalUrl: z
+    .string()
+    .regex(urlRegex, "Must be a valid URL starting with http:// or https://")
+    .max(2048, "URL is too long")
+    .optional(),
+
+  slug: z
+    .string()
+    .min(3, "Slug must be at least 3 characters")
+    .max(50, "Slug must be at most 50 characters")
+    .regex(/^[a-zA-Z0-9_-]+$/, "Slug can only contain letters, numbers, hyphens, and underscores")
+    .optional()
+    .or(z.literal("")),
+
+  ogTitle: z
+    .string()
+    .max(70, "Title must be at most 70 characters")
+    .optional()
+    .nullable()
+    .transform((val) => val || null),
+
+  ogDescription: z
+    .string()
+    .max(200, "Description must be at most 200 characters")
+    .optional()
+    .nullable()
+    .transform((val) => val || null),
+
+  ogImage: z
+    .string()
+    .max(2048, "Image URL is too long")
+    .optional()
+    .nullable()
+    .transform((val) => val || null),
+
+  expiresAt: z
+    .union([
+      z.string().datetime({ offset: true }),
+      z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "Invalid datetime format"),
+      z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/, "Invalid datetime format"),
+      z.date(),
+      z.literal(""),
+      z.null(),
+    ])
+    .optional()
+    .transform((val) => {
+      if (!val || val === "") return null;
+      if (val instanceof Date) return val;
+      const date = new Date(val);
+      return isNaN(date.getTime()) ? null : date;
+    }),
+
+  clickLimit: z
+    .union([z.number().int().positive(), z.string(), z.null()])
+    .optional()
+    .transform((val) => {
+      if (!val || val === "") return null;
+      const num = typeof val === "string" ? parseInt(val, 10) : val;
+      return isNaN(num) || num <= 0 ? null : num;
+    }),
+
   isActive: z.boolean().optional(),
-  expiresAt: z.string().datetime().optional().nullable(),
-  clickLimit: z.number().int().positive().optional().nullable(),
+
+  password: z
+    .string()
+    .max(100)
+    .optional()
+    .nullable()
+    .transform((val) => val || null),
+
+  iosUrl: z
+    .string()
+    .regex(urlRegex, "Must be a valid URL")
+    .max(2048)
+    .optional()
+    .nullable()
+    .transform((val) => val || null),
+
+  androidUrl: z
+    .string()
+    .regex(urlRegex, "Must be a valid URL")
+    .max(2048)
+    .optional()
+    .nullable()
+    .transform((val) => val || null),
 });
 
 export type UpdateLinkInput = z.infer<typeof updateLinkSchema>;
 
-// =============================================================================
-// PARAMETER SCHEMAS
-// =============================================================================
-
 /**
- * Link ID parameter validation
+ * Schema for checking slug availability
  */
-export const linkIdSchema = z.object({
-  id: z.string().cuid(),
-});
-
-/**
- * Slug parameter validation
- */
-export const slugParamSchema = z.object({
+export const checkSlugSchema = z.object({
   slug: z
     .string()
-    .min(SLUG_CONFIG.MIN_LENGTH)
-    .max(SLUG_CONFIG.MAX_LENGTH)
-    .regex(/^[a-z0-9-]+$/),
+    .min(3, "Slug must be at least 3 characters")
+    .max(50, "Slug must be at most 50 characters")
+    .regex(/^[a-zA-Z0-9_-]+$/, "Invalid characters in slug"),
 });
-
-// =============================================================================
-// QUERY SCHEMAS
-// =============================================================================
-
-/**
- * Analytics query validation
- */
-export const analyticsQuerySchema = z.object({
-  linkId: z.string().cuid().optional(),
-  period: z.enum(["24h", "7d", "30d", "90d"]).default("7d"),
-  startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional(),
-});
-
-export type AnalyticsQuery = z.infer<typeof analyticsQuerySchema>;
-
-/**
- * Pagination query validation
- */
-export const paginationSchema = z.object({
-  page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-  search: z.string().optional(),
-  sortBy: z.enum(["createdAt", "totalClicks", "updatedAt"]).default("createdAt"),
-  sortOrder: z.enum(["asc", "desc"]).default("desc"),
-});
-
-export type PaginationQuery = z.infer<typeof paginationSchema>;

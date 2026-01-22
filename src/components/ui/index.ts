@@ -23,3 +23,22 @@ export { Badge, badgeVariants } from "./badge";
 export type { BadgeProps } from "./badge";
 
 export { Avatar, AvatarImage, AvatarFallback } from "./avatar";
+
+export {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "./dropdown-menu";
+
+export {
+  Dialog,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogContent,
+  DialogFooter,
+  DialogClose,
+} from "./dialog";

@@ -12,21 +12,26 @@ import { db } from "@/app/lib/db";
 import { createLinkSchema } from "@/app/lib/validations";
 import { generateUniqueSlug, normalizeSlug, isSlugAvailable } from "@/app/lib/slug";
 import { setCachedLink, type CachedLink } from "@/app/lib/cache";
+import { RESERVED_SLUGS } from "@/app/lib/constants";
 
-// GET - List user's links
-export async function GET(request: NextRequest) {
+
+
+
+/**
+ * GET /api/links
+ * List all links for the authenticated user
+ */
+export async function GET(request: Request) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const searchParams = request.nextUrl.searchParams;
-    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
-    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "20", 10)));
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const limit = parseInt(searchParams.get("limit") || "20", 10);
     const search = searchParams.get("search") || "";
-    const sortBy = searchParams.get("sortBy") || "createdAt";
-    const sortOrder = searchParams.get("sortOrder") || "desc";
 
     const skip = (page - 1) * limit;
 
@@ -44,23 +49,23 @@ export async function GET(request: NextRequest) {
     const [links, total] = await Promise.all([
       db.link.findMany({
         where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
         select: {
           id: true,
           slug: true,
           originalUrl: true,
-          isActive: true,
           ogTitle: true,
           ogDescription: true,
           ogImage: true,
           totalClicks: true,
+          isActive: true,
           expiresAt: true,
           clickLimit: true,
           createdAt: true,
           updatedAt: true,
         },
-        orderBy: { [sortBy]: sortOrder },
-        skip,
-        take: limit,
       }),
       db.link.count({ where }),
     ]);
@@ -72,97 +77,144 @@ export async function GET(request: NextRequest) {
         limit,
         total,
         totalPages: Math.ceil(total / limit),
-        hasMore: skip + links.length < total,
       },
     });
   } catch (error) {
-    console.error("[API] Error listing links:", error);
+    console.error("[API] GET /api/links error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
-// POST - Create new link
-export async function POST(request: NextRequest) {
+/**
+ * POST /api/links
+ * Create a new short link
+ */
+export async function POST(request: Request) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const validationResult = createLinkSchema.safeParse(body);
+    // Parse body
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
 
-    if (!validationResult.success) {
+    // Validate input
+    const validation = createLinkSchema.safeParse(body);
+    if (!validation.success) {
+      const errors = validation.error.flatten();
+      console.log("[API] Validation errors:", errors);
       return NextResponse.json(
-        { error: "Validation failed", details: validationResult.error.flatten().fieldErrors },
+        { 
+          error: "Validation failed", 
+          details: errors.fieldErrors 
+        },
         { status: 400 }
       );
     }
 
-    const data = validationResult.data;
-    let slug: string;
+    const data = validation.data;
 
-    // Custom slug or generate
+    // Generate or validate slug
+    let slug: string;
     if (data.slug && data.slug.trim() !== "") {
-      const normalizedSlug = normalizeSlug(data.slug);
-      if (!normalizedSlug) {
-        return NextResponse.json({ error: "Invalid slug format" }, { status: 400 });
+      // Custom slug provided
+      slug = data.slug.toLowerCase().trim();
+
+      // Check if reserved
+      if (RESERVED_SLUGS.has(slug)) {
+        return NextResponse.json(
+          { error: "This slug is reserved", details: { slug: ["This slug is reserved"] } },
+          { status: 400 }
+        );
       }
-      if (!(await isSlugAvailable(normalizedSlug))) {
-        return NextResponse.json({ error: "This slug is already taken" }, { status: 409 });
+
+      // Check availability
+      const available = await isSlugAvailable(slug);
+      if (!available) {
+        return NextResponse.json(
+          { error: "Slug already taken", details: { slug: ["This slug is already in use"] } },
+          { status: 400 }
+        );
       }
-      slug = normalizedSlug;
     } else {
+      // Generate unique slug
       slug = await generateUniqueSlug();
     }
 
-    // Create link
+    // Prepare data for database
+    const linkData: {
+      userId: string;
+      slug: string;
+      originalUrl: string;
+      ogTitle?: string | null;
+      ogDescription?: string | null;
+      ogImage?: string | null;
+      expiresAt?: Date | null;
+      clickLimit?: number | null;
+      password?: string | null;
+      iosUrl?: string | null;
+      androidUrl?: string | null;
+    } = {
+      userId: session.user.id,
+      slug,
+      originalUrl: data.originalUrl,
+      ogTitle: data.ogTitle || null,
+      ogDescription: data.ogDescription || null,
+      ogImage: data.ogImage || null,
+      expiresAt: data.expiresAt || null,
+      clickLimit: data.clickLimit || null,
+      password: data.password || null,
+      iosUrl: data.iosUrl || null,
+      androidUrl: data.androidUrl || null,
+    };
+
+    // Create link in database
     const link = await db.link.create({
-      data: {
-        userId: session.user.id,
-        slug,
-        originalUrl: data.originalUrl,
-        ogTitle: data.ogTitle || null,
-        ogDescription: data.ogDescription || null,
-        ogImage: data.ogImage || null,
-        expiresAt: data.expiresAt ? new Date(data.expiresAt) : null,
-        clickLimit: data.clickLimit || null,
-      },
+      data: linkData,
       select: {
         id: true,
         slug: true,
         originalUrl: true,
-        isActive: true,
         ogTitle: true,
         ogDescription: true,
         ogImage: true,
         totalClicks: true,
+        isActive: true,
         expiresAt: true,
         clickLimit: true,
         createdAt: true,
       },
     });
 
-    // Cache the new link
-    const cacheData: CachedLink = {
-      id: link.id,
-      originalUrl: link.originalUrl,
-      isActive: link.isActive,
-      ogTitle: link.ogTitle,
-      ogDescription: link.ogDescription,
-      ogImage: link.ogImage,
-      iosUrl: null,
-      androidUrl: null,
-      expiresAt: link.expiresAt?.toISOString() ?? null,
-      clickLimit: link.clickLimit,
-      totalClicks: link.totalClicks,
-    };
-
-    setCachedLink(slug, cacheData).catch(console.error);
+    // Cache the link for fast edge access
+    try {
+      await setCachedLink(slug, {
+        id: link.id,
+        originalUrl: link.originalUrl,
+        isActive: link.isActive,
+        ogTitle: link.ogTitle,
+        ogDescription: link.ogDescription,
+        ogImage: link.ogImage,
+        expiresAt: link.expiresAt?.toISOString() || null,
+        clickLimit: link.clickLimit,
+        totalClicks: link.totalClicks,
+        iosUrl: null,
+        androidUrl: null
+      });
+    } catch (cacheError) {
+      console.error("[API] Cache error:", cacheError);
+      // Continue without cache
+    }
 
     return NextResponse.json(link, { status: 201 });
   } catch (error) {
-    console.error("[API] Error creating link:", error);
+    console.error("[API] POST /api/links error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

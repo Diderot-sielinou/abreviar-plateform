@@ -1,29 +1,107 @@
-/**
- * Analytics Dashboard Page
- */
+// ============================================================
+// FICHIER 6: src/app/dashboard/analytics/page.tsx (REMPLACER)
+// Correction: Période interactive avec useSearchParams
+// ============================================================
 
-import { auth } from "@/app/lib/auth";
-import { db } from "@/app/lib/db";
-import { formatCompactNumber } from "@/app/lib/utils";
+"use client";
+
+import { useEffect, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, Badge } from "@/components/ui";
-import {  Globe, Smartphone, Monitor, Tablet, MousePointerClick, TrendingUp, ExternalLink } from "lucide-react";
-import { subDays, startOfDay, endOfDay, format } from "date-fns";
+import {
+  BarChart3,
+  Globe,
+  Smartphone,
+  Monitor,
+  Tablet,
+  MousePointerClick,
+  TrendingUp,
+  ExternalLink,
+  Loader2,
+} from "lucide-react";
+import { formatCompactNumber } from "@/app/lib/utils";
 
-interface Props {
-  searchParams: Promise<{ period?: string; link?: string }>;
+interface AnalyticsData {
+  totalClicks: number;
+  timeSeries: { date: string; clicks: number }[];
+  countries: { country: string | null; clicks: number }[];
+  devices: { device: string; clicks: number }[];
+  browsers: { browser: string | null; clicks: number }[];
+  referrers: { domain: string | null; clicks: number }[];
 }
 
-export default async function AnalyticsPage({ searchParams }: Props) {
-  const session = await auth();
-  const userId = session?.user?.id;
+export default function AnalyticsPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
-  if (!userId) return null;
+  const period = searchParams.get("period") || "7d";
+  const linkId = searchParams.get("link") || undefined;
 
-  const params = await searchParams;
-  const period = params.period || "7d";
-  const linkId = params.link;
+  const [data, setData] = useState<AnalyticsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const data = await getAnalyticsData(userId, period, linkId);
+  // Charger les données
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const params = new URLSearchParams({ period });
+        if (linkId) params.set("linkId", linkId);
+
+        const res = await fetch(`/api/analytics?${params}`);
+        if (!res.ok) throw new Error("Failed to fetch analytics");
+
+        const json = await res.json();
+        setData(json);
+      } catch (err) {
+        setError("Failed to load analytics data");
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [period, linkId]);
+
+  // Changer la période
+  const handlePeriodChange = (newPeriod: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("period", newPeriod);
+    router.push(`/dashboard/analytics?${params.toString()}`);
+  };
+
+  const periods = [
+    { value: "24h", label: "24 hours" },
+    { value: "7d", label: "7 days" },
+    { value: "30d", label: "30 days" },
+    { value: "90d", label: "90 days" },
+  ];
+
+  if (loading) {
+    return (
+      <div className="p-6 lg:p-8 flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-tangerine" />
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="p-6 lg:p-8">
+        <Card>
+          <CardContent className="py-16 text-center">
+            <p className="text-muted-foreground">{error || "No data available"}</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const topDevice = data.devices[0]?.device || "N/A";
+  const topReferrer = data.referrers.find((r) => r.domain)?.domain || "Direct";
 
   return (
     <div className="p-6 lg:p-8 space-y-8">
@@ -34,16 +112,20 @@ export default async function AnalyticsPage({ searchParams }: Props) {
           <p className="text-muted-foreground mt-1">Track performance across all your links.</p>
         </div>
 
-        {/* Period selector */}
+        {/* Period selector - INTERACTIF */}
         <div className="flex items-center gap-2">
-          {["24h", "7d", "30d", "90d"].map((p) => (
-            <Badge
-              key={p}
-              variant={period === p ? "default" : "outline"}
-              className="cursor-pointer hover:bg-primary/20"
+          {periods.map((p) => (
+            <button
+              key={p.value}
+              onClick={() => handlePeriodChange(p.value)}
+              className={`px-3 py-1.5 text-sm font-medium rounded-full transition-colors ${
+                period === p.value
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+              }`}
             >
-              {p === "24h" ? "24 hours" : p === "7d" ? "7 days" : p === "30d" ? "30 days" : "90 days"}
-            </Badge>
+              {p.label}
+            </button>
           ))}
         </div>
       </div>
@@ -64,13 +146,13 @@ export default async function AnalyticsPage({ searchParams }: Props) {
         />
         <StatCard
           title="Top Device"
-          value={data.topDevice || "N/A"}
-          icon={data.topDevice === "MOBILE" ? Smartphone : data.topDevice === "TABLET" ? Tablet : Monitor}
+          value={topDevice}
+          icon={topDevice === "MOBILE" ? Smartphone : topDevice === "TABLET" ? Tablet : Monitor}
           description="Most used"
         />
         <StatCard
           title="Top Referrer"
-          value={data.topReferrer || "Direct"}
+          value={topReferrer}
           icon={ExternalLink}
           description="Traffic source"
         />
@@ -88,26 +170,35 @@ export default async function AnalyticsPage({ searchParams }: Props) {
             <CardDescription>Daily clicks over the selected period</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-64 flex items-end gap-1">
-              {data.timeSeries.map((point, i) => {
-                const maxClicks = Math.max(...data.timeSeries.map((p) => p.clicks), 1);
-                const height = (point.clicks / maxClicks) * 100;
-                return (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                    <div
-                      className="w-full bg-gradient-to-t from-tangerine to-amber rounded-t transition-all hover:opacity-80"
-                      style={{ height: `${Math.max(height, 2)}%` }}
-                      title={`${point.date}: ${point.clicks} clicks`}
-                    />
-                    {data.timeSeries.length <= 14 && (
-                      <span className="text-[10px] text-muted-foreground">
-                        {format(new Date(point.date), "dd")}
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            {data.timeSeries.length === 0 || data.totalClicks === 0 ? (
+              <EmptyChart message="No click data for this period" />
+            ) : (
+              <div className="h-64 flex items-end gap-1">
+                {data.timeSeries.map((point, i) => {
+                  const maxClicks = Math.max(...data.timeSeries.map((p) => p.clicks), 1);
+                  const height = (point.clicks / maxClicks) * 100;
+                  return (
+                    <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
+                      <div
+                        className="w-full bg-gradient-to-t from-tangerine to-amber rounded-t transition-all hover:opacity-80 cursor-pointer"
+                        style={{ height: `${Math.max(height, 4)}%` }}
+                      />
+                      {/* Tooltip */}
+                      <div className="absolute -top-10 left-1/2 -translate-x-1/2 hidden group-hover:block bg-popover border border-border rounded px-2 py-1 text-xs whitespace-nowrap z-10">
+                        {point.clicks} clicks
+                        <br />
+                        {new Date(point.date).toLocaleDateString()}
+                      </div>
+                      {data.timeSeries.length <= 14 && (
+                        <span className="text-[10px] text-muted-foreground">
+                          {new Date(point.date).getDate()}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -122,7 +213,7 @@ export default async function AnalyticsPage({ searchParams }: Props) {
           </CardHeader>
           <CardContent>
             {data.countries.length === 0 ? (
-              <EmptyState message="No geographic data yet" />
+              <EmptyChart message="No geographic data yet" />
             ) : (
               <div className="space-y-4">
                 {data.countries.slice(0, 8).map((country, i) => {
@@ -161,11 +252,16 @@ export default async function AnalyticsPage({ searchParams }: Props) {
           </CardHeader>
           <CardContent>
             {data.devices.length === 0 ? (
-              <EmptyState message="No device data yet" />
+              <EmptyChart message="No device data yet" />
             ) : (
               <div className="space-y-4">
                 {data.devices.map((device, i) => {
-                  const Icon = device.device === "MOBILE" ? Smartphone : device.device === "TABLET" ? Tablet : Monitor;
+                  const Icon =
+                    device.device === "MOBILE"
+                      ? Smartphone
+                      : device.device === "TABLET"
+                        ? Tablet
+                        : Monitor;
                   const total = data.devices.reduce((acc, d) => acc + d.clicks, 0) || 1;
                   const percentage = Math.round((device.clicks / total) * 100);
                   return (
@@ -176,7 +272,9 @@ export default async function AnalyticsPage({ searchParams }: Props) {
                       </span>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">{percentage}%</span>
-                        <span className="text-xs text-muted-foreground">({formatCompactNumber(device.clicks)})</span>
+                        <span className="text-xs text-muted-foreground">
+                          ({formatCompactNumber(device.clicks)})
+                        </span>
                       </div>
                     </div>
                   );
@@ -193,7 +291,7 @@ export default async function AnalyticsPage({ searchParams }: Props) {
           </CardHeader>
           <CardContent>
             {data.browsers.length === 0 ? (
-              <EmptyState message="No browser data yet" />
+              <EmptyChart message="No browser data yet" />
             ) : (
               <div className="space-y-4">
                 {data.browsers.slice(0, 5).map((browser, i) => {
@@ -204,7 +302,9 @@ export default async function AnalyticsPage({ searchParams }: Props) {
                       <span className="text-sm">{browser.browser || "Unknown"}</span>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">{percentage}%</span>
-                        <span className="text-xs text-muted-foreground">({formatCompactNumber(browser.clicks)})</span>
+                        <span className="text-xs text-muted-foreground">
+                          ({formatCompactNumber(browser.clicks)})
+                        </span>
                       </div>
                     </div>
                   );
@@ -221,7 +321,7 @@ export default async function AnalyticsPage({ searchParams }: Props) {
           </CardHeader>
           <CardContent>
             {data.referrers.length === 0 ? (
-              <EmptyState message="No referrer data yet" />
+              <EmptyChart message="No referrer data yet" />
             ) : (
               <div className="space-y-4">
                 {data.referrers.slice(0, 5).map((ref, i) => (
@@ -239,14 +339,17 @@ export default async function AnalyticsPage({ searchParams }: Props) {
   );
 }
 
-interface StatCardProps {
+function StatCard({
+  title,
+  value,
+  icon: Icon,
+  description,
+}: {
   title: string;
   value: string;
   icon: React.ComponentType<{ className?: string }>;
   description: string;
-}
-
-function StatCard({  value, icon: Icon, description }: StatCardProps) {
+}) {
   return (
     <Card hover>
       <CardContent className="p-6">
@@ -262,10 +365,8 @@ function StatCard({  value, icon: Icon, description }: StatCardProps) {
   );
 }
 
-function EmptyState({ message }: { message: string }) {
-  return (
-    <div className="py-8 text-center text-muted-foreground text-sm">{message}</div>
-  );
+function EmptyChart({ message }: { message: string }) {
+  return <div className="py-12 text-center text-muted-foreground text-sm">{message}</div>;
 }
 
 function getCountryFlag(code: string | null): string {
@@ -284,89 +385,4 @@ function getCountryName(code: string | null): string {
   } catch {
     return code;
   }
-}
-
-async function getAnalyticsData(userId: string, period: string, linkId?: string) {
-  const now = new Date();
-  let startDate: Date;
-
-  switch (period) {
-    case "24h": startDate = subDays(now, 1); break;
-    case "7d": startDate = subDays(now, 7); break;
-    case "30d": startDate = subDays(now, 30); break;
-    case "90d": startDate = subDays(now, 90); break;
-    default: startDate = subDays(now, 7);
-  }
-
-  const baseWhere = {
-    link: { userId, ...(linkId && { id: linkId }) },
-    createdAt: { gte: startOfDay(startDate), lte: endOfDay(now) },
-    isBot: false,
-  };
-
-  const [totalClicks, clicksByDay, countries, devices, browsers, referrers] = await Promise.all([
-    db.click.count({ where: baseWhere }),
-    db.click.groupBy({
-      by: ["createdAt"],
-      where: baseWhere,
-      _count: true,
-      orderBy: { createdAt: "asc" },
-    }),
-    db.click.groupBy({
-      by: ["country"],
-      where: { ...baseWhere, country: { not: null } },
-      _count: true,
-      orderBy: { _count: { country: "desc" } },
-      take: 10,
-    }),
-    db.click.groupBy({
-      by: ["device"],
-      where: baseWhere,
-      _count: true,
-      orderBy: { _count: { device: "desc" } },
-    }),
-    db.click.groupBy({
-      by: ["browser"],
-      where: { ...baseWhere, browser: { not: null } },
-      _count: true,
-      orderBy: { _count: { browser: "desc" } },
-      take: 5,
-    }),
-    db.click.groupBy({
-      by: ["refererDomain"],
-      where: baseWhere,
-      _count: true,
-      orderBy: { _count: { refererDomain: "desc" } },
-      take: 10,
-    }),
-  ]);
-
-  // Process time series
-  const dailyClicksMap = new Map<string, number>();
-  clicksByDay.forEach((item) => {
-    const day = item.createdAt.toISOString().split("T")[0];
-    dailyClicksMap.set(day, (dailyClicksMap.get(day) || 0) + item._count);
-  });
-
-  const timeSeries: Array<{ date: string; clicks: number }> = [];
-  const currentDate = new Date(startDate);
-  while (currentDate <= now) {
-    const dateStr = currentDate.toISOString().split("T")[0];
-    timeSeries.push({ date: dateStr, clicks: dailyClicksMap.get(dateStr) || 0 });
-    currentDate.setDate(currentDate.getDate() + 1);
-  }
-
-  const topDevice = devices[0]?.device || null;
-  const topReferrer = referrers.find((r) => r.refererDomain)?.refererDomain || null;
-
-  return {
-    totalClicks,
-    timeSeries,
-    countries: countries.map((c) => ({ country: c.country, clicks: c._count })),
-    devices: devices.map((d) => ({ device: d.device, clicks: d._count })),
-    browsers: browsers.map((b) => ({ browser: b.browser, clicks: b._count })),
-    referrers: referrers.map((r) => ({ domain: r.refererDomain, clicks: r._count })),
-    topDevice,
-    topReferrer,
-  };
 }
