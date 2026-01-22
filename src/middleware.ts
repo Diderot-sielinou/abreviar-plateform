@@ -2,12 +2,6 @@
  * Edge Middleware
  * 
  * Handles link redirections at the edge for ultra-low latency (<50ms).
- * 
- * Architecture:
- * 1. Check Vercel KV cache (Edge-compatible) - ~5ms
- * 2. If cache miss, call Node.js API to get from DB
- * 3. Bot detection → serve OG tags HTML
- * 4. Human → 307 redirect + async analytics
  */
 
 import { NextResponse } from "next/server";
@@ -101,6 +95,14 @@ interface LinkData {
   expiresAt: string | null;
   clickLimit: number | null;
   totalClicks: number;
+}
+
+interface GeoData {
+  country?: string;
+  city?: string;
+  region?: string;
+  latitude?: string;
+  longitude?: string;
 }
 
 // =============================================================================
@@ -212,12 +214,26 @@ function extractDomain(url: string): string {
   }
 }
 
+/**
+ * Extract geo data from Vercel headers
+ * These headers are only available when deployed on Vercel
+ */
+function getGeoData(request: NextRequest): GeoData {
+  return {
+    country: request.headers.get("x-vercel-ip-country") || undefined,
+    city: request.headers.get("x-vercel-ip-city") || undefined,
+    region: request.headers.get("x-vercel-ip-country-region") || undefined,
+    latitude: request.headers.get("x-vercel-ip-latitude") || undefined,
+    longitude: request.headers.get("x-vercel-ip-longitude") || undefined,
+  };
+}
+
 async function trackClick(
   request: NextRequest,
   linkId: string,
   baseUrl: string
 ): Promise<void> {
-  const geo = request.geo || {};
+  const geo = getGeoData(request);
 
   await fetch(`${baseUrl}/api/analytics/track`, {
     method: "POST",
@@ -230,8 +246,8 @@ async function trackClick(
       country: geo.country,
       city: geo.city,
       region: geo.region,
-      latitude: geo.latitude,
-      longitude: geo.longitude,
+      latitude: geo.latitude ? parseFloat(geo.latitude) : undefined,
+      longitude: geo.longitude ? parseFloat(geo.longitude) : undefined,
       userAgent: request.headers.get("user-agent") || "",
       referer: request.headers.get("referer") || "",
       timestamp: new Date().toISOString(),
