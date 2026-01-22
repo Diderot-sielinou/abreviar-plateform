@@ -6,7 +6,7 @@ import { auth } from "@/app/lib/auth";
 import { db } from "@/app/lib/db";
 import { formatCompactNumber } from "@/app/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, Badge } from "@/components/ui";
-import { BarChart3, Globe, Smartphone, Monitor, Tablet, MousePointerClick, TrendingUp, ExternalLink } from "lucide-react";
+import {  Globe, Smartphone, Monitor, Tablet, MousePointerClick, TrendingUp, ExternalLink } from "lucide-react";
 import { subDays, startOfDay, endOfDay, format } from "date-fns";
 
 interface Props {
@@ -246,7 +246,7 @@ interface StatCardProps {
   description: string;
 }
 
-function StatCard({ title, value, icon: Icon, description }: StatCardProps) {
+function StatCard({  value, icon: Icon, description }: StatCardProps) {
   return (
     <Card hover>
       <CardContent className="p-6">

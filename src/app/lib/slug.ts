@@ -9,7 +9,7 @@ import { db } from "./db";
 import { SLUG_CONFIG, RESERVED_SLUGS } from "./constants";
 
 // Custom nanoid with URL-friendly alphabet (no confusing chars)
-const nanoid = customAlphabet(SLUG_CONFIG.ALPHABET, SLUG_CONFIG.DEFAULT_LENGTH);
+// const nanoid = customAlphabet(SLUG_CONFIG.ALPHABET, SLUG_CONFIG.DEFAULT_LENGTH);
 
 // =============================================================================
 // GENERATION

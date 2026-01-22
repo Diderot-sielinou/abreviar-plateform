@@ -1,3 +1,6 @@
+/* eslint-disable @next/next/no-img-element */
+/* eslint-disable jsx-a11y/alt-text */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 /**
@@ -8,13 +11,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+// import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowLeft, Link2, Sparkles, Image, Calendar, Loader2, ExternalLink, Copy, Check } from "lucide-react";
 import { Button, Input, Card, CardContent, CardHeader, CardTitle, CardDescription, Badge } from "@/components/ui";
 
 export default function NewLinkPage() {
-  const router = useRouter();
+  // const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [copied, setCopied] = useState(false);

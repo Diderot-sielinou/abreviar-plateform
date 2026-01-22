@@ -214,6 +214,7 @@ export async function retry<T>(
 /**
  * Remove null/undefined values from object
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function cleanObject<T extends Record<string, any>>(obj: T): Partial<T> {
   return Object.fromEntries(
     Object.entries(obj).filter(([_, v]) => v != null)

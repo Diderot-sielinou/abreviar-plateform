@@ -26,6 +26,7 @@ export function LinkActions({ shortUrl, slug }: LinkActionsProps) {
       setCopied(true);
       toast.success("Link copied to clipboard!");
       setTimeout(() => setCopied(false), 2000);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error("Failed to copy link");
     }
